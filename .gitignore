@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.log
+proxy.err.log
+proxy.out.log
+js/config.js
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quant Screener Pro — Multi-Timeframe + Indicators + AI</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a href="#view-scanner" class="skip-link">Skip to main content</a>
+<div class="container" role="main">
+  <header role="banner">
+    <div>
+      <h1>Quant Screener Pro</h1>
+      <div class="stat-label-note" style="font-size: 0.78rem;">Multi-Timeframe · RSI · MACD · Volume Profile · BTC Correlation</div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Main navigation">
+      <button class="tab active" onclick="switchView('scanner', event)" role="tab" aria-selected="true" aria-controls="view-scanner" tabindex="0">Market Scan</button>
+      <button class="tab" onclick="switchView('portfolio', event)" role="tab" aria-selected="false" aria-controls="view-portfolio" tabindex="-1">Portfolio</button>
+      <button class="tab" onclick="switchView('tracker', event)" role="tab" aria-selected="false" aria-controls="view-tracker" tabindex="-1">Signal Tracker</button>
+      <button class="tab" onclick="switchView('backtest', event)" role="tab" aria-selected="false" aria-controls="view-backtest" tabindex="-1">Backtest</button>
+      <button class="tab" onclick="switchView('methodology', event)" role="tab" aria-selected="false" aria-controls="view-methodology" tabindex="-1">Methodology</button>
+    </nav>
+  </header>
+
+  <div class="status-bar" role="status" aria-live="polite" aria-label="Data status">
+    <div class="status-left">
+      <span id="data-source" aria-label="Data source">Initializing…</span>
+      <span class="status-dot ok" id="status-api" aria-label="API status">API</span>
+      <span class="status-dot ok" id="status-freshness" aria-label="Last updated">--</span>
+    </div>
+    <div class="status-right">
+      <button class="btn btn-sm" onclick="initiateWaterfallFetch()" title="Refresh data" aria-label="Refresh market data">⟳</button>
+      <button class="btn btn-ai btn-sm" onclick="triggerMarketSentiment()" title="AI Market Sentiment" aria-label="Get AI market sentiment analysis">🧠</button>
+      <span id="alerts-count" onclick="showAllAlerts()" title="Active price alerts" role="button" tabindex="0" aria-label="View active price alerts" onkeydown="if(event.key==='Enter')showAllAlerts()"></span>
+    </div>
+  </div>
+
+  <div id="view-scanner" class="view active" role="tabpanel" aria-labelledby="tab-scanner">
+    <div class="grid-stats" id="stats-row" role="region" aria-label="Market statistics"></div>
+    <div id="autotrade-mini-widget"></div>
+    <div class="filter-bar" id="filter-bar" role="toolbar" aria-label="Filter and sort options">
+      <select id="sort-by" onchange="applyFilters()" aria-label="Sort by">
+        <option value="score">Sort: Composite Score ↓</option>
+        <option value="confidence">Sort: Confidence ↓</option>
+        <option value="price">Sort: Price ↓</option>
+        <option value="rsi">Sort: RSI (Low → High)</option>
+        <option value="marketcap">Sort: Market Cap ↓</option>
+        <option value="change24h">Sort: 24h Change ↓</option>
+      </select>
+      <select id="mcap-filter" onchange="applyFilters()" aria-label="Filter by market cap">
+        <option value="all">Market Cap: All</option>
+        <option value="top50">Top 50</option>
+        <option value="50-150">Rank 50-150</option>
+        <option value="150-400">Rank 150-400</option>
+        <option value="400plus">Rank 400+</option>
+      </select>
+      <select id="signal-filter" onchange="applyFilters()" aria-label="Filter by signal type">
+        <option value="all">Signal: All Actionable</option>
+        <option value="strong-buy">Only Strong Buy</option>
+        <option value="buy">Only Buy</option>
+      </select>
+      <span class="vol-mcap-label" id="filter-count" aria-live="polite"></span>
+    </div>
+    <div id="scanner-tiers" aria-label="Coin scanner results"></div>
+  </div>
+
+  <div id="view-portfolio" class="view" role="tabpanel" aria-labelledby="tab-portfolio">
+    <div class="grid-stats" id="port-stats">
+      <div class="stat-card" role="status"><div class="stat-label">Total Invested</div><div class="stat-value" id="port-cost">₹0.00</div></div>
+      <div class="stat-card" role="status"><div class="stat-label">Current Value</div><div class="stat-value" id="port-total">₹0.00</div></div>
+      <div class="stat-card" role="status"><div class="stat-label">Unrealized P&L</div><div class="stat-value" id="port-pnl">₹0.00</div></div>
+    </div>
+    <div class="flex-between" style="margin-top:20px;">
+      <h2 style="font-size:1.1rem;">Your Holdings</h2>
+      <button class="btn btn-primary btn-sm" onclick="openModal('quick-add-modal','','',0)" aria-label="Add new portfolio entry">+ Add Entry</button>
+    </div>
+    <table aria-label="Portfolio holdings"><thead><tr><th scope="col">Asset</th><th scope="col">Holdings</th><th scope="col">Avg Buy</th><th scope="col">Current</th><th scope="col">P&L %</th><th scope="col">Net P&L</th><th scope="col">Signal</th><th scope="col">Action</th></tr></thead><tbody id="portfolio-table"></tbody></table>
+  </div>
+
+  <div id="view-tracker" class="view" role="tabpanel" aria-labelledby="tab-tracker">
+    <div class="section-title">Signal Performance Tracker</div>
+    <p class="text-muted" style="font-size:0.85rem;margin-bottom:16px;">Every signal generated is logged here. Win rate is calculated from confirmed outcomes (you mark a signal as ✓ Win or ✗ Loss).</p>
+    <div class="grid-stats" id="tracker-stats" role="region" aria-label="Tracker statistics"></div>
+    <table aria-label="Signal history"><thead><tr><th scope="col">Date</th><th scope="col">Coin</th><th scope="col">Score</th><th scope="col">Signal</th><th scope="col">Price (₹)</th><th scope="col">Confidence</th><th scope="col">RSI</th><th scope="col">BTC Corr</th><th scope="col">Result</th></tr></thead><tbody id="tracker-table"></tbody></table>
+  </div>
+
+  <div id="view-backtest" class="view" role="tabpanel" aria-labelledby="tab-backtest">
+    <div class="section-title">📊 Backtest & Performance Analysis</div>
+    <p class="text-muted" style="font-size:0.85rem;margin-bottom:16px;">Analyzes historical signal performance to validate scoring accuracy. Shows what score ranges, regimes, and conditions actually predicted profitable trades.</p>
+    
+    <div class="grid-stats" id="backtest-summary" role="region" aria-label="Backtest summary stats"></div>
+    
+    <div id="backtest-risk-manager" role="region" aria-label="Portfolio risk manager"></div>
+    
+    <div id="backtest-score-analysis" role="region" aria-label="Score range analysis"></div>
+    
+    <div id="backtest-regime-analysis" role="region" aria-label="Regime performance"></div>
+    
+    <div id="backtest-factor-analysis" role="region" aria-label="Factor contribution analysis"></div>
+    
+    <div id="backtest-weight-suggestions" role="region" aria-label="Weight optimization suggestions"></div>
+    
+    <div id="backtest-freshness" role="region" aria-label="Signal freshness analysis"></div>
+    
+    <div id="backtest-paper-trades" role="region" aria-label="Paper trade log"></div>
+    
+    <div class="backtest-actions">
+      <button class="btn btn-primary" onclick="runFullBacktest()" aria-label="Run full backtest analysis">▶ Run Full Analysis</button>
+      <button class="btn btn-ai" onclick="aiBacktestInsights()" aria-label="Get AI backtest insights">🧠 AI Insights</button>
+      <button class="btn" onclick="exportBacktestData()" aria-label="Export backtest data">📥 Export CSV</button>
+    </div>
+  </div>
+
+  <div id="view-methodology" class="view">
+    <div class="methodology-box">
+      <h2>Scoring Methodology (v2)</h2>
+      <p>The <strong>Composite Score (0–100)</strong> is a weighted blend of 10 sub-scores. Each sub-score is independently calculated on a <strong>0–100 scale starting from zero</strong> — a coin must earn every point through positive signals. No base inflation.</p>
+
+      <h4>1. Momentum Score (20%)</h4>
+      <p>Evaluates price trend across 4 timeframes — 1h, 24h, 7d, 30d. Rewards sustained multi-timeframe uptrends and penalizes sharp drops. A coin with all timeframes negative scores 0. Strongest factor — momentum is the most persistent alpha source in crypto markets (adapted from Jegadeesh & Titman).</p>
+
+      <h4>2. Volume Profile Score (18%)</h4>
+      <p>Volume / Market Cap ratio thresholds: &gt;10% (50pts), &gt;8% (40pts), &gt;5% (30pts), &gt;3% (15pts). Below 1.5% penalizes. Includes volume trend detection — compares last 24h hourly price movement vs prior 24h for surge confirmation.</p>
+
+      <h4>3. RSI Score (12%)</h4>
+      <p><strong>Daily-timeframe RSI</strong> — hourly sparkline data is resampled to daily closes before computing RSI. This gives a meaningful swing-trade signal rather than intraday noise. Oversold (&lt;30) = 90pts, favorable (30–45) = 50–70pts, neutral (45–55) = 30pts, overbought (&gt;75) = 0pts.</p>
+
+      <h4>4. MACD Score (10%)</h4>
+      <p><strong>Hourly MACD (3,7,3)</strong> — computed on 168 hourly candles (7 days). Shorter periods than standard (12,26,9) for faster signal detection on short-term trades. Bullish crossover = 90pts, uptrend = 60pts, bearish crossover = 0pts.</p>
+
+      <h4>5. BTC Correlation (8%)</h4>
+      <p><strong>Pearson correlation computed on hourly returns, not raw prices.</strong> Correlating prices is statistically spurious — two uptrending assets always appear correlated. Returns measure actual co-movement. Low correlation (&lt;0.2) = 100pts (independent alpha), high (&gt;0.8) = 5pts (just follows BTC).</p>
+
+      <h4>6. Fear & Greed Sentiment (8%) — Market-Cap Scaled</h4>
+      <p>Powered by <strong>alternative.me Fear & Greed Index</strong>. <strong>Scaled by market cap tier</strong> — small caps (rank 300+) receive only 40% of the contrarian bonus because they crash 3–5x harder in fear periods. Large caps (top 50) get the full bonus. Extreme Fear = up to 90pts (for large caps), Extreme Greed = 0pts.</p>
+
+      <h4>7. News Sentiment (5%)</h4>
+      <p>Headlines from <strong>CryptoCompare</strong> classified by LLM on a -10 to +10 scale, mapped to 0–100. Lowest weight because news sentiment is noisy and often priced in by the time retail sees it.</p>
+
+      <h4>8. ATH Distance (7%)</h4>
+      <p>Distance below all-time high. Near ATH (&lt;5%) = 0pts (limited upside, reversal risk). 80%+ below ATH = 95pts (deep value). Graduated scale rewards coins with room to run.</p>
+
+      <h4>9. BTC Dominance (5%)</h4>
+      <p>BTC.D &gt;60% = 10pts (alt pressure). BTC.D &lt;42% = 90pts (alt season signal). Derived from <strong>CoinGecko /global</strong>.</p>
+
+      <h4>10. Developer Activity (7%)</h4>
+      <p>GitHub commits (4 weeks), PR contributors, stars from <strong>CoinGecko dev data</strong>. 100+ commits with 10+ contributors = 100pts. Zero activity = 0pts. Filters zombie coins.</p>
+
+      <h4>Composite Weighting (10-Factor Model)</h4>
+      <p>Mom(20%) · Vol(18%) · RSI(12%) · MACD(10%) · Corr(8%) · F&G(8%) · News(5%) · ATH(7%) · BTC.D(5%) · Dev(7%)</p>
+
+      <h4>Confidence % (Independent Metric)</h4>
+      <p><strong>No longer a function of the composite score.</strong> Confidence measures <em>indicator agreement</em> — what percentage of independent signals (RSI, MACD, 24h trend, 7d trend, correlation, volume, news) point bullish, multiplied by data quality (how many indicators we could compute). A coin can have a high score but low confidence if its signals disagree.</p>
+
+      <h4>Market Cap Filter: ₹500B INR</h4>
+      <p>Replaces the old price cap. <strong>Price alone is meaningless</strong> — a ₹2 coin with 10B supply is more expensive than a ₹5,000 coin with 1M supply. Market cap is the correct measure of size. Only assets with market cap ≤ ₹500B appear as actionable opportunities.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-content" tabindex="-1">
+    <h3 id="modal-title">Add to Portfolio</h3>
+    <label for="add-id" class="sr-only">Coin ID</label>
+    <input type="text" id="add-id" placeholder="Coin ID (e.g. solana)" aria-label="Coin ID">
+    <label for="add-qty" class="sr-only">Quantity</label>
+    <input type="number" id="add-qty" placeholder="Quantity Bought" step="any" aria-label="Quantity bought">
+    <label for="add-price" class="sr-only">Buy Price</label>
+    <input type="number" id="add-price" placeholder="Buy Price (₹)" step="any" aria-label="Buy price in rupees">
+    <div class="flex-row"><button class="btn btn-success" style="flex:1" onclick="addHolding()" aria-label="Save holding">Save</button><button class="btn" style="flex:1" onclick="closeModal('quick-add-modal')" aria-label="Cancel">Cancel</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="alert-modal" role="dialog" aria-modal="true" aria-labelledby="alert-modal-title">
+  <div class="modal-content" tabindex="-1">
+    <h3 id="alert-modal-title">🔔 Set Price Alert</h3>
+    <input type="hidden" id="alert-coin-id">
+    <div class="vol-mcap-label" style="margin-bottom:10px;">
+      <span id="alert-coin-name" style="font-weight:700;color:var(--text-main);"></span>
+      <span id="alert-coin-price" style="margin-left:8px;"></span>
+    </div>
+    <div class="flex-row" style="margin-bottom:12px;">
+      <div style="flex:1;">
+        <label for="alert-direction" class="stat-label">Alert when price goes</label>
+        <select id="alert-direction" style="margin-bottom:0;" aria-label="Alert direction">
+          <option value="above">Above ↑</option>
+          <option value="below">Below ↓</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label for="alert-target" class="stat-label">Target Price (₹)</label>
+        <input type="number" id="alert-target" placeholder="Target ₹" step="any" style="margin-bottom:0;" aria-label="Target price in rupees">
+      </div>
+    </div>
+    <div class="flex-row"><button class="btn btn-success" style="flex:1" onclick="saveAlert()" aria-label="Set alert">Set Alert</button><button class="btn" style="flex:1" onclick="closeModal('alert-modal')" aria-label="Cancel">Cancel</button></div>
+    <ul class="alert-list" id="alert-list-active" aria-label="Active alerts"></ul>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ai-modal" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
+  <div class="modal-content" tabindex="-1">
+    <h3 id="ai-modal-title">AI Quant Report</h3>
+    <div class="ai-response-box" id="ai-response-box" aria-live="polite"></div>
+    <button class="btn" style="width:100%" onclick="closeModal('ai-modal')" aria-label="Close AI report">Close</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/indicators.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/data.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/ai-trading.js"></script>
+<script src="js/alerts.js"></script>
+<script src="js/tracker.js"></script>
+<script src="js/portfolio.js"></script>
+<script src="js/backtest.js"></script>
+<script src="js/autotrade.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
