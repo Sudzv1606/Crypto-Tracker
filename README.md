@@ -6,7 +6,7 @@ A quantitative crypto screening dashboard with AI-powered scoring, autonomous pa
 
 ```bash
 # 1. Clone the repo
-git clone git@github.com:Sudzv1606/AI-Vakeel.git
+git clone git@github.com:Sudzv1606/Crypto-Tracker.git
 cd AI-Vakeel
 
 # 2. Copy the config template
